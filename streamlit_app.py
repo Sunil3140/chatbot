@@ -39,20 +39,29 @@ else:
             st.markdown(prompt)
 
         # Generate a response using the Gemini API.
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         
         # Convert messages to Gemini format
-        chat = model.start_chat(history=[
-            {
+        chat_history = []
+        for m in st.session_state.messages[:-1]:  # Exclude the last message we just added
+            chat_history.append({
                 "role": "user" if m["role"] == "user" else "model",
                 "parts": [m["content"]]
-            }
-            for m in st.session_state.messages[:-1]  # Exclude the last message we just added
-        ])
+            })
+        
+        chat = model.start_chat(history=chat_history)
         
         # Stream the response
         with st.chat_message("assistant"):
             response = chat.send_message(prompt, stream=True)
-            response_text = st.write_stream(response)
+            full_response = ""
+            response_placeholder = st.empty()
+            
+            for chunk in response:
+                if chunk.text:
+                    full_response += chunk.text
+                    response_placeholder.markdown(full_response + "▌")
+            
+            response_placeholder.markdown(full_response)
         
-        st.session_state.messages.append({"role": "assistant", "content": response_text})
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
